@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Geolocalizador de Lomas</title>
+
+  <!-- Bootstrap CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- Leaflet CSS y JS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+
+  <!-- Estilo personalizado -->
+  <style>
+    body {
+      padding: 2rem;
+      background-color: #f8f9fa;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    h2, h3 {
+      margin-top: 1.5rem;
+    }
+
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+
+    textarea {
+      resize: none;
+    }
+    .text-shadow {
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+  <!-- Encabezado -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4 rounded shadow">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1 text-wrap">📍🐧 Geolocalizador de Lomas</span>
+    </div>
+  </nav>
+
+  <!-- Fondo visual -->
+  <div class="bg-cover" style="
+    background-image: url(https://upload.wikimedia.org/wikipedia/commons/c/cc/J31_531_Waldabschnitt_b_Santa_Catalina.jpg);
+    background-size: cover;
+    background-position: center;
+    height: 450px;
+    position: relative;
+    z-index: 1;
+  ">
+  </div>
+
+  <!-- Contenido -->
+  <div class="container" style="position: relative; z-index: 2; margin-top: -300px;">
+    <h2 class="text-white text-shadow">Pegá tus direcciones</h2>
+    <form method="POST">
+      <textarea name="direcciones" class="form-control" rows="6" placeholder="Una dirección por línea"></textarea><br>
+      <button type="submit" class="btn btn-primary">Procesar</button>
+    </form>
+
+    {% if resultados %}
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start;" class="my-4">
+      <!-- Coordenadas para RouteXL -->
+      <div style="flex: 1 1 300px;">
+        <h3 class="mb-2">Coordenadas </h3>
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-outline-primary" onclick="copiarCoordenadas()">Copiar coordenadas</button>
+          <a href="https://www.routexl.com/" target="_blank" class="btn btn-success">Ir a RouteXL</a>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#bloqueCoordenadas" aria-expanded="false" aria-controls="bloqueCoordenadas">
+          Mostrar / Ocultar
+        </button>
+
+        <div class="collapse" id="bloqueCoordenadas">
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered table-hover mt-4">
+              <thead>
+                <tr>
+                  <th class="text-center">Coordenadas con Dirección</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in resultados %}
+                <tr>
+                  <td class="font-monospace">{{ r.lat }},{{ r.lng }} # {{ r.corregida }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <textarea id="coordenadas" class="form-control mt-3" rows="10" readonly style="display: none;">
+            {% for r in resultados %}
+            {{ r.lat }},{{ r.lng }} # {{ r.corregida }}
+            {% endfor %}
+          </textarea>
+        </div>
+      </div>
+
+      <!-- Mapa interactivo -->
+      <div style="flex: 2 1 500px;">
+        <h3>Mapa de ubicaciones</h3>
+        <div id="map" class="border rounded shadow-sm my-4" style="height: 500px; width: 100%;"></div>
+      </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <h3 class="mt-4 mb-2 border-bottom pb-2">Direcciones</h3>
+    <div class="mb-3">
+      <button class="btn btn-outline-secondary btn-sm px-2 py-1" type="button" data-bs-toggle="collapse" data-bs-target="#tablaCoordenadas" aria-expanded="false" aria-controls="tablaCoordenadas">
+        Mostrar / Ocultar
+      </button>
+    </div>
+    <div class="collapse" id="tablaCoordenadas">
+      <table class="table table-striped table-bordered table-hover mt-4 text-center">
+        <thead>
+          <tr>
+            <th>Ingresada</th>
+            <th>Corregida</th>
+            <th>Latitud</th>
+            <th>Longitud</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resultados %}
+          <tr>
+            <td>{{ r.original }}</td>
+            <td><strong>{{ r.resaltado }}</strong>{{ r.resto }}</td>
+            <td>{{ r.lat }}</td>
+            <td>{{ r.lng }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Script copiar coordenadas -->
+    <script>
+      function copiarCoordenadas() {
+        var texto = document.getElementById("coordenadas");
+        texto.select();
+        texto.setSelectionRange(0, 99999); // Para móviles
+        document.execCommand("copy");
+        alert("¡Coordenadas copiadas al portapapeles!");
+      }
+    </script>
+
+    <!-- Script de Leaflet y mapa -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+      integrity="sha256-o9N1j7kP6rJb9K1sRZl9FZzmv7GkGx6Un+Dl3Yv5JK0="
+      crossorigin=""
+    ></script>
+
+    <script>
+      window.addEventListener('load', function () {
+        console.log('Inicializando mapa...');
+
+        var map = L.map('map');
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+        }).addTo(map);
+
+        var bounds = [];
+
+        {% for r in resultados %}
+          {% if r.lat and r.lng %}
+            var marker = L.marker([{{ r.lat }}, {{ r.lng }}])
+              .addTo(map)
+              .bindPopup("<b>{{ r.corregida }}</b><br>({{ r.lat }}, {{ r.lng }})");
+            bounds.push([{{ r.lat }}, {{ r.lng }}]);
+          {% endif %}
+        {% endfor %}
+
+        if (bounds.length > 0) {
+          map.fitBounds(bounds, { padding: [30, 30] });
+        } else {
+          map.setView([-34.75, -58.4], 13); // fallback por si no hay puntos
+        }
+      });
+    </script>
+    {% endif %}
+  </div> <!-- /container -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
